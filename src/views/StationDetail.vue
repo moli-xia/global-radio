@@ -26,7 +26,7 @@
     <!-- 电台详情内容 -->
     <div v-else-if="station" class="max-w-4xl mx-auto px-4 py-8">
       <!-- 主要信息卡片 -->
-      <div class="bg-black/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-3xl shadow-xl border border-white/20 dark:border-gray-700/30 overflow-hidden mb-8 station-card-enter">
+      <div class="bg-black dark:bg-gray-800/70 backdrop-blur-xl rounded-3xl shadow-xl border border-white/20 dark:border-gray-700/30 overflow-hidden mb-8 station-card-enter">
         <!-- 大图区域 -->
         <div class="relative h-64 md:h-[450px] flex flex-col items-center justify-center overflow-hidden transition-all duration-1000 animated-background">
           <!-- 动态背景层 -->
@@ -184,11 +184,7 @@ const dynamicBackgroundStyle = ref({});
 const visualizerContainer = ref<HTMLDivElement>();
 const visualizerCanvas = ref<HTMLCanvasElement>();
 const canvasWidth = ref(320);
-const canvasHeight = ref(60);
-let audioContext: AudioContext | null = null;
-let analyser: AnalyserNode | null = null;
-let source: MediaElementAudioSourceNode | null = null;
-let dataArray: Uint8Array | null = null;
+const canvasHeight = ref(120);
 let animationId: number | null = null;
 
 const stationUuid = computed(() => route.params.uuid as string);
@@ -284,269 +280,91 @@ const openShareModal = () => {
   isShareModalVisible.value = true;
 };
 
-// 初始化音频可视化 - 混合动力算法
-const initAudioVisualizer = async () => {
-  console.log('尝试初始化音频可视化...');
-  // 确保只初始化一次
-  if (audioContext) {
-    console.log('音频上下文已存在，跳过初始化。');
-    return;
-  }
-
-  try {
-    const audioElement = playerStore.audio; // 直接访问 audio 实例
-    if (!audioElement) {
-      console.warn('播放器音频元素尚未准备好，使用模拟可视化。');
-      startSimulatedVisualizer();
-      return;
-    }
-
-    // 为音频元素设置 crossOrigin 属性
-    audioElement.crossOrigin = 'anonymous';
-    console.log('设置 audioElement.crossOrigin = "anonymous"');
-    
-    audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    
-    if (audioContext.state === 'suspended') {
-      console.log('音频上下文处于挂起状态，尝试恢复...');
-      await audioContext.resume();
-      console.log('音频上下文已恢复。');
-    }
-
-    source = audioContext.createMediaElementSource(audioElement);
-    analyser = audioContext.createAnalyser();
-    
-    source.connect(analyser);
-    analyser.connect(audioContext.destination);
-    
-    dataArray = new Uint8Array(analyser.frequencyBinCount);
-    
-    console.log('✅ 音频可视化初始化成功 - 已连接到真实音频源！');
-    startRealTimeVisualizer();
-
-  } catch (err) {
-    console.error('❌ 音频可视化初始化失败，回退到模拟可视化:', err);
-    startSimulatedVisualizer();
-  }
+// 初始化音频可视化 - Siri Wave 风格
+const initAudioVisualizer = () => {
+  // 简单地启动波形动画，无需复杂的音频上下文
+  // 这种方式更稳定，跨域兼容性更好，且视觉效果更现代
+  startSiriWave();
 };
 
-// 彩虹色生成函数
-const getRainbowColor = (position: number, lightness: number, alpha: number = 1.0) => {
-  const hue = position * 360;
-  return `hsla(${hue}, 100%, ${lightness * 100}%, ${alpha})`;
-};
+// Siri Wave 变量
+let phase = 0;
+// 定义三条波浪的颜色和参数
+const waves = [
+  { color: 'rgba(59, 130, 246, 0.6)', speed: 0.01, amplitude: 0.5 }, // 蓝色
+  { color: 'rgba(236, 72, 153, 0.6)', speed: 0.02, amplitude: 0.4 }, // 粉色
+  { color: 'rgba(139, 92, 246, 0.6)', speed: 0.015, amplitude: 0.3 }, // 紫色
+];
 
-// 调试：强制显示彩虹波形
-const forceRainbowWaveform = () => {
-  console.log('🌈 强制显示彩虹波形');
-  if (visualizerCanvas.value) {
-    const ctx = visualizerCanvas.value.getContext('2d');
-    if (ctx) {
-      console.log('✅ 画布上下文获取成功');
-      drawStaticRainbowWaveform(ctx);
-    } else {
-      console.log('❌ 无法获取画布上下文');
-    }
-  } else {
-    console.log('❌ 画布元素不存在');
-  }
-};
-
-// 开发环境调试
-if (typeof window !== 'undefined') {
-  (window as any).forceRainbowWaveform = forceRainbowWaveform;
-}
-
-// 启动真实音频可视化 - v8.3 (对称镜像引擎)
-const startRealTimeVisualizer = () => {
-  if (!analyser || !dataArray || !visualizerCanvas.value) return;
-  const canvas = visualizerCanvas.value;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-
-  analyser.fftSize = 512;
-  analyser.smoothingTimeConstant = 0.8;
-  const bufferLength = analyser.frequencyBinCount;
-  const barCount = 32;
-  const barSpacing = 5;
-  
-  let previousBarData = new Array(barCount).fill(0);
-  let peakHeights = new Array(barCount).fill(0);
-  const peakGap = 5;
-
-  const draw = () => {
-    if (!isCurrentAndPlaying.value) { drawStaticRainbowWaveform(ctx); animationId = requestAnimationFrame(draw); return; }
-
-    analyser!.getByteFrequencyData(dataArray!);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    const totalSpacing = (barCount - 1) * barSpacing;
-    const barWidth = (canvas.width - totalSpacing) / barCount;
-    const maxHeight = canvas.height - 2 - peakGap;
-
-    const barRealEnergies = new Array(barCount).fill(0);
-    const logMax = Math.log2(bufferLength);
-    for (let i = 0; i < barCount; i++) {
-        const startPercent = Math.pow(2, logMax * (i / barCount)) / bufferLength;
-        const endPercent = Math.pow(2, logMax * ((i + 1) / barCount)) / bufferLength;
-        const startIndex = Math.floor(startPercent * bufferLength * 0.8);
-        const endIndex = Math.min(bufferLength - 1, Math.floor(endPercent * bufferLength * 0.8));
-        let sum = 0;
-        for (let j = startIndex; j <= endIndex; j++) { sum += dataArray![j]; }
-        // v8.1 修复: 确保i=0时也能正确计算能量
-        const avg = (endIndex >= startIndex) ? sum / (endIndex - startIndex + 1) : 0;
-        barRealEnergies[i] = Math.pow(avg / 255, 1.5);
-    }
-    
-    for (let i = 0; i < barCount; i++) {
-      let finalEnergy;
-
-      // v8.3: 对称镜像引擎
-      if (i < barCount / 2) {
-        // 左半部分由自己驱动
-        finalEnergy = barRealEnergies[i];
-      } else {
-        // 右半部分镜像左半部分
-        const mirrorIndex = barCount - 1 - i;
-        const mirroredEnergy = barRealEnergies[mirrorIndex];
-        // 为了让镜像不那么生硬，轻微混合自身的能量
-        finalEnergy = mirroredEnergy * 0.9 + barRealEnergies[i] * 0.1;
-      }
-      
-      const smoothedEnergy = (previousBarData[i] || 0) * 0.6 + finalEnergy * 0.4;
-      previousBarData[i] = smoothedEnergy;
-
-      let barHeight = Math.max(2, Math.min(smoothedEnergy, 1.0) * maxHeight);
-      barHeight *= 0.8; // 全局高度降低20%
-      
-      const targetPeakHeight = barHeight;
-      if (targetPeakHeight > peakHeights[i]) {
-        peakHeights[i] = targetPeakHeight;
-      } else {
-        peakHeights[i] += (targetPeakHeight - peakHeights[i]) * 0.08;
-      }
-      
-      const x = i * (barWidth + barSpacing);
-      const rainbowPosition = i / (barCount - 1);
-
-      const y = canvas.height - barHeight;
-      const gradient = ctx.createLinearGradient(x, canvas.height, x, y);
-      gradient.addColorStop(0, getRainbowColor(rainbowPosition, 0.7));
-      gradient.addColorStop(1, getRainbowColor(rainbowPosition, 1));
-      ctx.fillStyle = gradient;
-      ctx.fillRect(x, y, barWidth, barHeight);
-
-      const peakY = canvas.height - (peakHeights[i] + peakGap);
-      ctx.fillStyle = getRainbowColor(rainbowPosition, 1.0, 0.9);
-      ctx.fillRect(x, peakY, barWidth, 2);
-    }
-    
-    animationId = requestAnimationFrame(draw);
-  };
-  draw();
-};
-
-// 启动模拟可视化 - v8.3 (对称镜像引擎)
-const startSimulatedVisualizer = () => {
+const startSiriWave = () => {
   if (!visualizerCanvas.value) return;
   const canvas = visualizerCanvas.value;
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
-  const barCount = 32;
-  const barSpacing = 5;
-  let previousBarData = new Array(barCount).fill(0);
-  let peakHeights = new Array(barCount).fill(0);
-  const peakGap = 5;
-
   const draw = () => {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const totalSpacing = (barCount - 1) * barSpacing;
-    const barWidth = (canvas.width - totalSpacing) / barCount;
-    const maxHeight = canvas.height - 2 - peakGap;
-    const time = Date.now();
-    
-    // v8.3: 先生成所有独立的能量值
-    const independentEnergies = new Array(barCount).fill(0);
-    for (let j = 0; j < barCount; j++) {
-      independentEnergies[j] = (Math.sin(time * 0.002 + j * 0.5) * 0.5 + 0.5) * (0.6 * (1 - (j / barCount)));
+    // 检查画布是否还存在
+    if (!visualizerCanvas.value) {
+      if (animationId) cancelAnimationFrame(animationId);
+      return;
     }
 
-    for (let i = 0; i < barCount; i++) {
-      let finalEnergy;
-
-      // v8.3: 对称镜像引擎
-      if (i < barCount / 2) {
-        finalEnergy = independentEnergies[i];
-      } else {
-        const mirrorIndex = barCount - 1 - i;
-        const mirroredEnergy = independentEnergies[mirrorIndex];
-        finalEnergy = mirroredEnergy * 0.9 + independentEnergies[i] * 0.1;
-      }
-      
-      if (!isCurrentAndPlaying.value) {
-        finalEnergy *= 0.3;
-      }
-      
-      const smoothedEnergy = (previousBarData[i] || 0) * 0.7 + finalEnergy * 0.3;
-      previousBarData[i] = smoothedEnergy;
-
-      let barHeight = Math.max(2, Math.min(smoothedEnergy, 1.0) * maxHeight);
-      barHeight *= 0.8; // 全局高度降低20%
-      
-      const targetPeakHeight = barHeight;
-      if (targetPeakHeight > peakHeights[i]) {
-        peakHeights[i] = targetPeakHeight;
-      } else {
-        peakHeights[i] += (targetPeakHeight - peakHeights[i]) * 0.08;
-      }
-
-      const x = i * (barWidth + barSpacing);
-      const rainbowPosition = i / (barCount - 1);
-      
-      const y = canvas.height - barHeight;
-      const gradient = ctx.createLinearGradient(x, canvas.height, x, y);
-      gradient.addColorStop(0, getRainbowColor(rainbowPosition, 0.7));
-      gradient.addColorStop(1, getRainbowColor(rainbowPosition, 1));
-      ctx.fillStyle = gradient;
-      ctx.fillRect(x, y, barWidth, barHeight);
-
-      const peakY = canvas.height - (peakHeights[i] + peakGap);
-      ctx.fillStyle = getRainbowColor(rainbowPosition, 1.0, 0.9);
-      ctx.fillRect(x, peakY, barWidth, 2);
-    }
+    const width = canvas.width;
+    const height = canvas.height;
     
+    ctx.clearRect(0, 0, width, height);
+    ctx.globalCompositeOperation = 'screen'; // 混合模式产生发光效果
+
+    const baseAmplitude = height * 0.35;
+    const isPlaying = isCurrentAndPlaying.value;
+    const t = Date.now() * 0.002;
+
+    // 绘制每一条波浪
+    waves.forEach((wave, index) => {
+      ctx.beginPath();
+      ctx.strokeStyle = wave.color;
+      ctx.lineWidth = 2;
+      
+      // 根据播放状态调整振幅
+      let currentAmp = wave.amplitude;
+      if (isPlaying) {
+        // 播放时：使用正弦波模拟动态起伏
+        // 加入一些随机性让它看起来更像真实的音频响应
+        currentAmp *= (1 + Math.sin(t + index * 2) * 0.4 + Math.cos(t * 0.5) * 0.2);
+      } else {
+        // 暂停时：保持微小的呼吸感
+        currentAmp *= 0.15;
+      }
+
+      // 绘制波形路径
+      for (let x = 0; x <= width; x += 2) {
+        // 归一化 X 坐标 (-2 到 2) 用于高斯衰减计算
+        const scaledX = (x / width) * 4 - 2;
+        
+        // 高斯窗口函数：使波形在两端自然衰减为0
+        const attenuation = Math.exp(-Math.pow(scaledX, 2));
+        
+        // 波形公式：y = 振幅 * sin(频率 * x + 相位) * 衰减
+        const y = height / 2 + 
+                  Math.sin(x * 0.01 + phase * wave.speed + index + t) * 
+                  baseAmplitude * currentAmp * attenuation;
+        
+        if (x === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    });
+    
+    // 更新相位
+    phase += isPlaying ? 2 : 0.5;
+    
+    // 继续下一帧
     animationId = requestAnimationFrame(draw);
   };
-  draw();
-};
-
-// 绘制静态波形 - 统一风格
-const drawStaticRainbowWaveform = (ctx: CanvasRenderingContext2D) => {
-  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-  const barCount = 32;
-  const barSpacing = 5;
-  const totalSpacing = (barCount - 1) * barSpacing;
-  const barWidth = (ctx.canvas.width - totalSpacing) / barCount;
-  const maxHeight = ctx.canvas.height - 2;
   
-  const staticPeak = 0.15 * maxHeight; // 固定的较低能量
-
-  for (let i = 0; i < barCount; i++) {
-    const waveModifier = (Math.sin(i * 0.4) * 0.5 + 0.5);
-    const barHeight = Math.max(2, staticPeak * (0.6 + waveModifier * 0.4));
-    
-    const x = i * (barWidth + barSpacing);
-    const y = ctx.canvas.height - barHeight;
-    const rainbowPosition = i / (barCount - 1);
-    
-    const gradient = ctx.createLinearGradient(x, ctx.canvas.height, x, y);
-    gradient.addColorStop(0, getRainbowColor(rainbowPosition, 0.6));
-    gradient.addColorStop(1, getRainbowColor(rainbowPosition, 0.85));
-    
-    ctx.fillStyle = gradient;
-    ctx.fillRect(x, y, barWidth, barHeight);
-  }
+  // 启动动画循环
+  if (animationId) cancelAnimationFrame(animationId);
+  draw();
 };
 
 // 停止可视化
@@ -557,33 +375,23 @@ const stopVisualizer = () => {
   }
 };
 
-// 更新画布尺寸 - 宽柱状条，固定长度
+// 更新画布尺寸
 const updateCanvasSize = () => {
   if (!visualizerContainer.value) return;
   
-  // 固定画布宽度以确保波形图总长度不变，同时允许响应式调整
   const containerWidth = visualizerContainer.value.offsetWidth;
-  canvasWidth.value = Math.min(500, containerWidth > 0 ? containerWidth - 20 : 500);
-  canvasHeight.value = 90; // 调整高度
+  // 增加宽度和高度以获得更好的视觉效果
+  canvasWidth.value = Math.min(800, containerWidth > 0 ? containerWidth : 320);
+  canvasHeight.value = 120; // 增加高度，使波形更舒展
   
-  // 立即重绘以反映尺寸变化
-  setTimeout(() => {
-    if (visualizerCanvas.value) {
-      const ctx = visualizerCanvas.value.getContext('2d');
-      if (ctx) drawStaticRainbowWaveform(ctx);
-    }
-  }, 50);
+  // 重新启动动画以适应新尺寸
+  stopVisualizer();
+  setTimeout(startSiriWave, 50);
 };
 
 // 监听播放状态变化
-watch(isCurrentAndPlaying, async (newVal) => {
-  if (newVal && audioContext?.state === 'suspended') {
-    try {
-      await audioContext.resume();
-    } catch (err) {
-      console.log('恢复音频上下文失败:', err);
-    }
-  }
+watch(isCurrentAndPlaying, () => {
+  // 播放状态改变时，动画循环会自动调整振幅，无需重启
 });
 
 onMounted(async () => {
@@ -606,37 +414,17 @@ onMounted(async () => {
   await nextTick();
   updateCanvasSize();
   
-  // 延迟初始化音频可视化，等待音频元素加载
+  // 启动 Siri Wave 动画
   setTimeout(() => {
     initAudioVisualizer();
-  }, 1000);
-  
-  // 强制立即显示彩虹色静态波形
-  setTimeout(() => {
-    if (visualizerCanvas.value) {
-      const ctx = visualizerCanvas.value.getContext('2d');
-      if (ctx) {
-        drawStaticRainbowWaveform(ctx);
-      }
-    }
   }, 100);
-
+  
   // 监听窗口大小变化
   window.addEventListener('resize', updateCanvasSize);
 });
 
 onUnmounted(() => {
   stopVisualizer();
-  
-  // 清理音频可视化：断开节点，并重新连接 source 到 destination
-  if (analyser && source && audioContext) {
-    source.disconnect(analyser);
-    analyser.disconnect();
-    // 恢复音频播放，绕过分析器
-    source.connect(audioContext.destination); 
-  }
-  // 注意：我们仍然不关闭 audioContext，因为它可能正在被其他部分使用或即将被重用
-  
   window.removeEventListener('resize', updateCanvasSize);
 });
 </script>
@@ -786,21 +574,22 @@ onUnmounted(() => {
 .particle-7 { width: 7px; height: 7px; bottom: 15%; right: 50%; animation-delay: -1s; animation-duration: 21s; }
 .particle-8 { width: 14px; height: 14px; top: 85%; left: 40%; animation-delay: -9s; animation-duration: 23s; }
 
-/* 彩虹音频可视化 - 无背景框 */
+/* 音频可视化容器 */
 .audio-visualizer-container {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: -1.5rem; /* 使用负外边距强制上移 */
-  margin-bottom: 2rem; /* 确保与下方按钮有足够间距 */
+  margin-top: -2rem; 
+  margin-bottom: 1.5rem;
   position: relative;
   z-index: 20;
+  width: 100%;
 }
 
 .rainbow-visualizer-canvas {
   background: transparent;
   border-radius: 8px;
-  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3));
+  /* 移除阴影以获得更干净的发光效果 */
 }
 
 @keyframes slideUp {
