@@ -1,6 +1,6 @@
 <template>
   <!-- 移动端播放栏 -->
-  <div class="player-bar block md:hidden fixed left-0 right-0 z-20 glass-effect border-t border-gray-200 dark:border-dark-gray px-4 py-3" style="bottom: 88px;">
+  <div class="player-bar block md:hidden fixed left-0 right-0 z-20 glass-effect border-t border-b border-gray-300/60 dark:border-dark-gray px-4 py-3" style="bottom: 88px;">
     <div class="flex items-center gap-3">
       <!-- 电台信息 -->
       <div class="flex items-center gap-3 flex-1 min-w-0">

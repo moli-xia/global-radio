@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🎵 Radio AABB Live - Android APK 快速构建工具"
+echo "🎵 GlobalRadio - Android APK 快速构建工具"
 echo "============================================="
 echo ""
 
@@ -54,7 +54,7 @@ case $choice in
     3)
         echo "⚙️ 正在初始化 Capacitor..."
         if [ ! -f "capacitor.config.ts" ]; then
-            npx cap init "Radio AABB Live" "live.aabb.radio" --web-dir=dist
+            npx cap init "GlobalRadio" "com.globalradio.app" --web-dir=dist
             echo "✅ Capacitor 初始化完成"
         else
             echo "ℹ️ Capacitor 已经初始化"
@@ -90,7 +90,7 @@ case $choice in
         
         echo "步骤 3/6: 初始化 Capacitor..."
         if [ ! -f "capacitor.config.ts" ]; then
-            npx cap init "Radio AABB Live" "live.aabb.radio" --web-dir=dist
+            npx cap init "GlobalRadio" "com.globalradio.app" --web-dir=dist
         fi
         
         echo "步骤 4/6: 添加 Android 平台..."
@@ -129,4 +129,4 @@ esac
 echo ""
 echo "✨ 操作完成！"
 echo ""
-echo "📚 更多信息请查看 ANDROID_BUILD_GUIDE.md" 
+echo "📚 更多信息请查看 README.md" 

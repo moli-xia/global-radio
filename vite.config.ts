@@ -91,7 +91,7 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 4173,
     cors: true,
-    allowedHosts: ['radio.aabb.live', 'localhost', '127.0.0.1']
+    allowedHosts: true
   },
   build: {
     outDir: 'dist',

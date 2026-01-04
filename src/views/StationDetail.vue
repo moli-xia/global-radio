@@ -26,7 +26,7 @@
     <!-- 电台详情内容 -->
     <div v-else-if="station" class="max-w-4xl mx-auto px-4 py-8">
       <!-- 主要信息卡片 -->
-      <div class="bg-black dark:bg-gray-800/70 backdrop-blur-xl rounded-3xl shadow-xl border border-white/20 dark:border-gray-700/30 overflow-hidden mb-8 station-card-enter">
+      <div class="bg-white/95 dark:bg-gray-800/70 backdrop-blur-xl rounded-3xl shadow-xl dark:border dark:border-gray-700/30 overflow-hidden mb-8 station-card-enter">
         <!-- 大图区域 -->
         <div class="relative h-64 md:h-[450px] flex flex-col items-center justify-center overflow-hidden transition-all duration-1000 animated-background">
           <!-- 动态背景层 -->
@@ -158,7 +158,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
+import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 import { useRadioStore } from '@/stores/radio';
 import { usePlayerStore } from '@/stores/player';
@@ -184,7 +184,7 @@ const dynamicBackgroundStyle = ref({});
 const visualizerContainer = ref<HTMLDivElement>();
 const visualizerCanvas = ref<HTMLCanvasElement>();
 const canvasWidth = ref(320);
-const canvasHeight = ref(120);
+const canvasHeight = ref(60);
 let animationId: number | null = null;
 
 const stationUuid = computed(() => route.params.uuid as string);
@@ -280,91 +280,180 @@ const openShareModal = () => {
   isShareModalVisible.value = true;
 };
 
-// 初始化音频可视化 - Siri Wave 风格
-const initAudioVisualizer = () => {
-  // 简单地启动波形动画，无需复杂的音频上下文
-  // 这种方式更稳定，跨域兼容性更好，且视觉效果更现代
-  startSiriWave();
+const initAudioVisualizer = async () => {
+  startSimulatedVisualizer();
 };
 
-// Siri Wave 变量
-let phase = 0;
-// 定义三条波浪的颜色和参数
-const waves = [
-  { color: 'rgba(59, 130, 246, 0.6)', speed: 0.01, amplitude: 0.5 }, // 蓝色
-  { color: 'rgba(236, 72, 153, 0.6)', speed: 0.02, amplitude: 0.4 }, // 粉色
-  { color: 'rgba(139, 92, 246, 0.6)', speed: 0.015, amplitude: 0.3 }, // 紫色
-];
+// 彩虹色生成函数
+const getRainbowColor = (position: number, lightness: number, alpha: number = 1.0) => {
+  const hue = position * 360;
+  return `hsla(${hue}, 100%, ${lightness * 100}%, ${alpha})`;
+};
 
-const startSiriWave = () => {
+// 调试：强制显示彩虹波形
+const forceRainbowWaveform = () => {
+  console.log('🌈 强制显示彩虹波形');
+  if (visualizerCanvas.value) {
+    const ctx = visualizerCanvas.value.getContext('2d');
+    if (ctx) {
+      console.log('✅ 画布上下文获取成功');
+      drawStaticRainbowWaveform(ctx);
+    } else {
+      console.log('❌ 无法获取画布上下文');
+    }
+  } else {
+    console.log('❌ 画布元素不存在');
+  }
+};
+
+// 开发环境调试
+if (typeof window !== 'undefined') {
+  (window as any).forceRainbowWaveform = forceRainbowWaveform;
+}
+
+// 启动模拟可视化 - v8.3 (对称镜像引擎)
+const startSimulatedVisualizer = () => {
   if (!visualizerCanvas.value) return;
   const canvas = visualizerCanvas.value;
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
+  let smoothed: number[] = [];
+  let peaks: number[] = [];
+
+  const drawRoundedRect = (x: number, y: number, w: number, h: number, r: number) => {
+    const rr = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + rr, y);
+    ctx.arcTo(x + w, y, x + w, y + h, rr);
+    ctx.arcTo(x + w, y + h, x, y + h, rr);
+    ctx.arcTo(x, y + h, x, y, rr);
+    ctx.arcTo(x, y, x + w, y, rr);
+    ctx.closePath();
+  };
+
   const draw = () => {
-    // 检查画布是否还存在
-    if (!visualizerCanvas.value) {
-      if (animationId) cancelAnimationFrame(animationId);
-      return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const w = canvas.width;
+    const h = canvas.height;
+    const now = performance.now();
+    const baseHue = (now / 35) % 360;
+    const hueShift = baseHue / 360;
+
+    const gradient = ctx.createLinearGradient(0, 0, w, 0);
+    for (let i = 0; i <= 6; i++) {
+      const t = i / 6;
+      gradient.addColorStop(t, getRainbowColor((hueShift + t) % 1, 0.7, 1));
     }
 
-    const width = canvas.width;
-    const height = canvas.height;
-    
-    ctx.clearRect(0, 0, width, height);
-    ctx.globalCompositeOperation = 'screen'; // 混合模式产生发光效果
+    const isMd = window.innerWidth >= 768;
+    const spacing = isMd ? 6 : 5;
+    const desiredBarWidth = isMd ? 10 : 8;
+    const barCount = Math.max(22, Math.min(40, Math.floor(w / (desiredBarWidth + spacing))));
+    if (smoothed.length !== barCount) {
+      smoothed = new Array(barCount).fill(0);
+      peaks = new Array(barCount).fill(0);
+    }
 
-    const baseAmplitude = height * 0.35;
-    const isPlaying = isCurrentAndPlaying.value;
-    const t = Date.now() * 0.002;
+    const totalSpacing = (barCount - 1) * spacing;
+    const barWidth = Math.max(4, (w - totalSpacing) / barCount);
+    const maxHeight = h - 12;
+    const minHeight = 6;
+    const radius = Math.min(6, Math.floor(barWidth / 2));
+    const t = now * 0.001;
+    const active = isCurrentAndPlaying.value ? 1 : 0.35;
+    const beat = Math.pow((Math.sin(t * 2.15) + 1) / 2, 10) * 0.65;
 
-    // 绘制每一条波浪
-    waves.forEach((wave, index) => {
-      ctx.beginPath();
-      ctx.strokeStyle = wave.color;
-      ctx.lineWidth = 2;
-      
-      // 根据播放状态调整振幅
-      let currentAmp = wave.amplitude;
-      if (isPlaying) {
-        // 播放时：使用正弦波模拟动态起伏
-        // 加入一些随机性让它看起来更像真实的音频响应
-        currentAmp *= (1 + Math.sin(t + index * 2) * 0.4 + Math.cos(t * 0.5) * 0.2);
-      } else {
-        // 暂停时：保持微小的呼吸感
-        currentAmp *= 0.15;
-      }
+    ctx.save();
+    ctx.fillStyle = gradient;
+    ctx.shadowColor = isCurrentAndPlaying.value ? 'rgba(99, 102, 241, 0.22)' : 'rgba(99, 102, 241, 0.12)';
+    ctx.shadowBlur = isCurrentAndPlaying.value ? 14 : 8;
 
-      // 绘制波形路径
-      for (let x = 0; x <= width; x += 2) {
-        // 归一化 X 坐标 (-2 到 2) 用于高斯衰减计算
-        const scaledX = (x / width) * 4 - 2;
-        
-        // 高斯窗口函数：使波形在两端自然衰减为0
-        const attenuation = Math.exp(-Math.pow(scaledX, 2));
-        
-        // 波形公式：y = 振幅 * sin(频率 * x + 相位) * 衰减
-        const y = height / 2 + 
-                  Math.sin(x * 0.01 + phase * wave.speed + index + t) * 
-                  baseAmplitude * currentAmp * attenuation;
-        
-        if (x === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-      ctx.stroke();
-    });
-    
-    // 更新相位
-    phase += isPlaying ? 2 : 0.5;
-    
-    // 继续下一帧
+    for (let i = 0; i < barCount; i++) {
+      const xNorm = i / Math.max(1, barCount - 1);
+      const a = Math.sin(t * 2.8 + i * 0.55) * 0.55;
+      const b = Math.sin(t * 6.2 + i * 1.35) * 0.28;
+      const c = Math.sin(t * 1.4 + i * 0.2) * 0.18;
+      let v = 0.5 + a * 0.35 + b * 0.25 + c * 0.2;
+      v = Math.max(0, Math.min(1, v));
+      v = Math.min(1, v * active + beat * (1 - xNorm) * active);
+
+      smoothed[i] = smoothed[i] * 0.76 + v * 0.24;
+      peaks[i] = Math.max(smoothed[i], peaks[i] * (isCurrentAndPlaying.value ? 0.92 : 0.94));
+
+      const barHeight = minHeight + smoothed[i] * (maxHeight - minHeight);
+      const x = i * (barWidth + spacing);
+      const y = h - barHeight;
+
+      ctx.globalAlpha = isCurrentAndPlaying.value ? 0.98 : 0.72;
+      drawRoundedRect(x, y, barWidth, barHeight, radius);
+      ctx.fill();
+
+      const peakHeight = minHeight + peaks[i] * (maxHeight - minHeight);
+      const peakY = h - peakHeight - 3;
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = isCurrentAndPlaying.value ? 0.9 : 0.6;
+      drawRoundedRect(x, peakY, barWidth, 3, 2);
+      ctx.fill();
+      ctx.shadowBlur = isCurrentAndPlaying.value ? 14 : 8;
+    }
+    ctx.restore();
+
     animationId = requestAnimationFrame(draw);
   };
-  
-  // 启动动画循环
-  if (animationId) cancelAnimationFrame(animationId);
   draw();
+};
+
+// 绘制静态波形 - 统一风格
+const drawStaticRainbowWaveform = (ctx: CanvasRenderingContext2D) => {
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  const w = ctx.canvas.width;
+  const h = ctx.canvas.height;
+  const now = performance.now();
+  const baseHue = (now / 60) % 360;
+  const hueShift = baseHue / 360;
+
+  const gradient = ctx.createLinearGradient(0, 0, w, 0);
+  for (let i = 0; i <= 6; i++) {
+    const t = i / 6;
+    gradient.addColorStop(t, getRainbowColor((hueShift + t) % 1, 0.72, 1));
+  }
+
+  ctx.save();
+  const isMd = window.innerWidth >= 768;
+  const spacing = isMd ? 6 : 5;
+  const desiredBarWidth = isMd ? 10 : 8;
+  const barCount = Math.max(22, Math.min(40, Math.floor(w / (desiredBarWidth + spacing))));
+  const totalSpacing = (barCount - 1) * spacing;
+  const barWidth = Math.max(4, (w - totalSpacing) / barCount);
+  const maxHeight = h - 12;
+  const minHeight = 6;
+  const radius = Math.min(6, Math.floor(barWidth / 2));
+  const t = now * 0.001;
+
+  ctx.fillStyle = gradient;
+  ctx.globalAlpha = 0.75;
+  ctx.shadowColor = 'rgba(99, 102, 241, 0.14)';
+  ctx.shadowBlur = 10;
+
+  for (let i = 0; i < barCount; i++) {
+    const wave = (Math.sin(t * 1.6 + i * 0.55) * 0.5 + 0.5) * 0.35;
+    const barHeight = minHeight + wave * (maxHeight - minHeight);
+    const x = i * (barWidth + spacing);
+    const y = h - barHeight;
+
+    ctx.beginPath();
+    const rr = Math.min(radius, barWidth / 2, barHeight / 2);
+    ctx.moveTo(x + rr, y);
+    ctx.arcTo(x + barWidth, y, x + barWidth, y + barHeight, rr);
+    ctx.arcTo(x + barWidth, y + barHeight, x, y + barHeight, rr);
+    ctx.arcTo(x, y + barHeight, x, y, rr);
+    ctx.arcTo(x, y, x + barWidth, y, rr);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  ctx.restore();
 };
 
 // 停止可视化
@@ -375,24 +464,23 @@ const stopVisualizer = () => {
   }
 };
 
-// 更新画布尺寸
+// 更新画布尺寸 - 宽柱状条，固定长度
 const updateCanvasSize = () => {
   if (!visualizerContainer.value) return;
   
+  // 固定画布宽度以确保波形图总长度不变，同时允许响应式调整
   const containerWidth = visualizerContainer.value.offsetWidth;
-  // 增加宽度和高度以获得更好的视觉效果
-  canvasWidth.value = Math.min(800, containerWidth > 0 ? containerWidth : 320);
-  canvasHeight.value = 120; // 增加高度，使波形更舒展
+  canvasWidth.value = Math.min(560, containerWidth > 0 ? containerWidth : 560);
+  canvasHeight.value = window.innerWidth >= 768 ? 84 : 72;
   
-  // 重新启动动画以适应新尺寸
-  stopVisualizer();
-  setTimeout(startSiriWave, 50);
+  // 立即重绘以反映尺寸变化
+  setTimeout(() => {
+    if (visualizerCanvas.value) {
+      const ctx = visualizerCanvas.value.getContext('2d');
+      if (ctx) drawStaticRainbowWaveform(ctx);
+    }
+  }, 50);
 };
-
-// 监听播放状态变化
-watch(isCurrentAndPlaying, () => {
-  // 播放状态改变时，动画循环会自动调整振幅，无需重启
-});
 
 onMounted(async () => {
   try {
@@ -414,11 +502,21 @@ onMounted(async () => {
   await nextTick();
   updateCanvasSize();
   
-  // 启动 Siri Wave 动画
+  // 延迟初始化音频可视化，等待音频元素加载
   setTimeout(() => {
     initAudioVisualizer();
-  }, 100);
+  }, 1000);
   
+  // 强制立即显示彩虹色静态波形
+  setTimeout(() => {
+    if (visualizerCanvas.value) {
+      const ctx = visualizerCanvas.value.getContext('2d');
+      if (ctx) {
+        drawStaticRainbowWaveform(ctx);
+      }
+    }
+  }, 100);
+
   // 监听窗口大小变化
   window.addEventListener('resize', updateCanvasSize);
 });
@@ -574,22 +672,24 @@ onUnmounted(() => {
 .particle-7 { width: 7px; height: 7px; bottom: 15%; right: 50%; animation-delay: -1s; animation-duration: 21s; }
 .particle-8 { width: 14px; height: 14px; top: 85%; left: 40%; animation-delay: -9s; animation-duration: 23s; }
 
-/* 音频可视化容器 */
+/* 彩虹音频可视化 - 无背景框 */
 .audio-visualizer-container {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: -2rem; 
-  margin-bottom: 1.5rem;
+  width: min(560px, 100%);
+  padding: 0 16px;
+  margin-top: -0.75rem;
+  margin-bottom: 1.75rem;
   position: relative;
   z-index: 20;
-  width: 100%;
+  pointer-events: none;
 }
 
 .rainbow-visualizer-canvas {
   background: transparent;
-  border-radius: 8px;
-  /* 移除阴影以获得更干净的发光效果 */
+  border-radius: 9999px;
+  display: block;
 }
 
 @keyframes slideUp {

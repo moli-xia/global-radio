@@ -62,7 +62,7 @@ const copySuccess = ref(false)
 const copyLink = async () => {
   if (!props.station) return
 
-  const shareUrl = `https://radio.aabb.live/station/${props.station.stationuuid}`
+  const shareUrl = `${window.location.origin}/station/${props.station.stationuuid}`
   
   try {
     await navigator.clipboard.writeText(shareUrl)

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 开始构建 Radio AABB Live Android APK..."
+echo "🚀 开始构建 GlobalRadio Android APK..."
 
 # 检查是否安装了必要依赖
 echo "📦 检查依赖..."
@@ -20,7 +20,7 @@ npm run build
 # 初始化Capacitor（如果尚未初始化）
 if [ ! -f "capacitor.config.ts" ]; then
     echo "⚙️ 初始化 Capacitor..."
-    npx cap init "Radio AABB Live" "live.aabb.radio" --web-dir=dist
+    npx cap init "GlobalRadio" "com.globalradio.app" --web-dir=dist
 fi
 
 # 添加Android平台（如果尚未添加）

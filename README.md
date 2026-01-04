@@ -1,8 +1,17 @@
-# 全球电台（radio.aabb.live）
+# 全球电台（GlobalRadio）
 
 这是一个基于 Vue 3 + Vite 的在线电台应用，包含播放、搜索、收藏、历史记录、主题切换与多语言等功能，并支持 PWA 安装。
 
-本项目仅保留这一份说明文档（README.md），用于部署、运维与开发。
+本项目可作为开源项目托管到 GitHub，并支持本地安装使用与 Docker 部署。
+
+## 功能概览
+
+- 浏览电台（热门/最新/按国家/按标签）
+- 搜索（支持中文）
+- 播放控制（播放/暂停、音量、静音）
+- 收藏与播放历史
+- 亮色/暗色主题、多语言
+- PWA 安装（桌面/移动端）
 
 ## 目录结构
 
@@ -12,19 +21,52 @@
 ├── public/              # 静态资源
 ├── dist/                # 构建产物（Vite build 输出）
 ├── nginx-static.conf    # 静态站点 Nginx 示例配置
+├── nginx.docker.conf    # Docker 镜像内 Nginx 配置
+├── Dockerfile           # Docker 构建文件
 ├── vite.config.ts       # Vite 配置
 └── package.json         # 前端依赖与脚本
 ```
 
-## 本地开发
+## 获取源码
 
 ```bash
-npm install
+git clone https://github.com/<your-username>/<your-repo>.git
+cd <your-repo>
+```
+
+## 环境要求
+
+- Node.js 18+（推荐 18 LTS）
+- npm 9+（建议使用 `npm ci`）
+- Docker 20+（仅 Docker 部署需要）
+
+## 推送到你的 GitHub
+
+1) 在 GitHub 新建一个空仓库（不要勾选初始化 README / .gitignore）。
+
+2) 在本地项目目录执行：
+
+```bash
+git init
+git add -A
+git commit -m "init"
+git branch -M main
+git remote add origin https://github.com/<your-username>/<your-repo>.git
+git push -u origin main
+```
+
+## 本地安装与开发
+
+```bash
+npm ci
 npm run dev -- --host 0.0.0.0 --port 4173
 ```
 
 浏览器访问：
 - http://localhost:4173/
+
+局域网访问（同网段设备）：
+- http://<你的电脑IP>:4173/
 
 ## 构建与预览
 
@@ -32,6 +74,9 @@ npm run dev -- --host 0.0.0.0 --port 4173
 npm run build
 npm run preview -- --host 0.0.0.0 --port 4173
 ```
+
+浏览器访问：
+- http://localhost:4173/
 
 ## 生产部署（静态站点）
 
@@ -46,9 +91,9 @@ npm run build
 2) 部署构建产物（示例）：
 
 ```bash
-rm -rf /var/www/radio-app/dist
-mkdir -p /var/www/radio-app
-cp -r dist /var/www/radio-app/dist
+rm -rf /var/www/global-radio/dist
+mkdir -p /var/www/global-radio
+cp -r dist /var/www/global-radio/dist
 ```
 
 3) 参考 nginx-static.conf 配置站点 root 指向 `dist/`，然后重载 Nginx：
@@ -74,7 +119,11 @@ sudo systemctl reload nginx
 
 ## Docker 部署
 
-安装 Docker（Linux，推荐参考官方文档；也可使用便捷安装脚本）：
+适用场景：不想安装 Node.js，只想用容器快速部署；或者希望用 Nginx 直接提供静态站点服务。
+
+### 方式 A：本地构建镜像并运行
+
+安装 Docker（Linux 示例；也可使用官方文档的安装方式）：
 
 ```bash
 curl -fsSL https://get.docker.com | sh
@@ -84,13 +133,13 @@ sudo systemctl enable --now docker
 构建镜像：
 
 ```bash
-docker build -t radio-aabb-live:latest .
+docker build -t global-radio:latest .
 ```
 
 运行容器（映射到本机 8080 端口）：
 
 ```bash
-docker run --rm -p 8080:80 radio-aabb-live:latest
+docker run --rm -p 8080:80 global-radio:latest
 ```
 
 浏览器访问：
@@ -101,7 +150,7 @@ docker run --rm -p 8080:80 radio-aabb-live:latest
 1) 直接运行（前置 8080）：
 
 ```bash
-docker run -d --name radio-aabb-live --restart unless-stopped -p 8080:80 radio-aabb-live:latest
+docker run -d --name global-radio --restart unless-stopped -p 8080:80 global-radio:latest
 ```
 
 2) 需要自定义域名与 HTTPS 时：在宿主机用 Nginx / Caddy 做反向代理到 `127.0.0.1:8080`，容器内只负责静态资源服务。
@@ -109,9 +158,17 @@ docker run -d --name radio-aabb-live --restart unless-stopped -p 8080:80 radio-a
 更新部署（Docker）：
 
 ```bash
-docker build -t radio-aabb-live:latest .
-docker rm -f radio-aabb-live || true
-docker run -d --name radio-aabb-live --restart unless-stopped -p 8080:80 radio-aabb-live:latest
+docker build -t global-radio:latest .
+docker rm -f global-radio || true
+docker run -d --name global-radio --restart unless-stopped -p 8080:80 global-radio:latest
+```
+
+### 方式 B：使用 Docker Hub / GHCR（可选）
+
+如果你把镜像发布到 Docker Hub 或 GitHub Container Registry（GHCR），用户可以直接拉取运行：
+
+```bash
+docker run -d --name global-radio --restart unless-stopped -p 8080:80 <image>:<tag>
 ```
 
 ## 常见问题：无法访问

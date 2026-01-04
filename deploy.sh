@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Radio.aabb.live 自动部署脚本
+# GlobalRadio 自动部署脚本
 # 使用方法: chmod +x deploy.sh && ./deploy.sh
 
 set -e
 
-echo "🚀 开始部署 Radio.aabb.live 项目..."
+echo "🚀 开始部署 GlobalRadio 项目..."
 
 # 颜色定义
 RED='\033[0;31m'
@@ -105,8 +105,8 @@ case $deploy_choice in
         echo -e "${BLUE}准备静态文件部署...${NC}"
         
         # 询问部署目录
-        read -p "请输入网站根目录 [/www/wwwroot/radio.aabb.live]: " web_dir
-        WEB_DIR=${web_dir:-/www/wwwroot/radio.aabb.live}
+        read -p "请输入网站根目录 [/var/www/global-radio/dist]: " web_dir
+        WEB_DIR=${web_dir:-/var/www/global-radio/dist}
         
         # 创建目录
         sudo mkdir -p "$WEB_DIR"
@@ -118,7 +118,7 @@ case $deploy_choice in
         
         # 复制 Nginx 配置模板
         if [ -f "nginx-static.conf" ]; then
-            sudo cp nginx-static.conf /etc/nginx/sites-available/radio.aabb.live 2>/dev/null || {
+            sudo cp nginx-static.conf /etc/nginx/sites-available/global-radio 2>/dev/null || {
                 echo -e "${YELLOW}⚠️  无法复制 Nginx 配置文件，请手动配置${NC}"
             }
         fi
@@ -171,8 +171,8 @@ echo -e "${GREEN}✓ 项目构建: 完成${NC}"
 echo -e "${GREEN}✓ 文件部署: 完成${NC}"
 echo ""
 echo -e "${BLUE}📝 后续步骤:${NC}"
-echo "1. 配置域名 DNS 解析"
-echo "2. 配置 SSL 证书"
+echo "1. 如需绑定域名，请配置 DNS 解析"
+echo "2. 如需 HTTPS，请配置 SSL 证书"
 echo "3. 配置并重启 Nginx"
 echo "4. 测试网站功能"
 echo ""

@@ -4,7 +4,7 @@
     <TopNavigation />
     
     <!-- 主要内容区域 -->
-    <main :class="mainContentClasses">
+    <main class="pb-24 md:pb-8 desktop:pt-20">
       <div class="container-responsive">
         <router-view />
       </div>
@@ -28,7 +28,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, computed } from 'vue'
+import { onMounted } from 'vue'
 import { usePlayerStore } from '@/stores/player'
 import { useRadioStore } from '@/stores/radio'
 import { useThemeStore } from '@/stores/theme'
@@ -46,17 +46,6 @@ const playerStore = usePlayerStore()
 const radioStore = useRadioStore()
 const themeStore = useThemeStore()
 const languageStore = useLanguageStore()
-
-// 动态计算主要内容区域的类名
-const mainContentClasses = computed(() => {
-  const isMobile = deviceOptimization.isMobile()
-  return {
-    'pb-24': isMobile, // 移动端有底部导航时需要底部边距
-    'pb-8': !isMobile, // PC端没有底部导航时减少底部边距
-    'lg:pb-28': false, // 移除原有的lg断点样式
-    'lg:pt-20': !isMobile // PC端顶部导航边距
-  }
-})
 
 // 用户首次交互处理
 let userInteracted = false

@@ -1,5 +1,5 @@
 <template>
-  <nav v-if="shouldShowNavigation" class="bottom-navigation fixed bottom-0 left-0 right-0 z-10 bg-white dark:bg-dark-surface border-t border-gray-200 dark:border-dark-gray">
+  <nav class="bottom-navigation block md:hidden fixed bottom-0 left-0 right-0 z-10 bg-white dark:bg-dark-surface border-t border-gray-200 dark:border-dark-gray">
     <div class="flex items-center justify-around py-3 px-2 h-[88px]">
       <router-link
         v-for="item in navigationItems"
@@ -38,14 +38,8 @@ import {
   Cog6ToothIcon
 } from '@heroicons/vue/24/outline'
 import { useLanguageStore } from '@/stores/language'
-import { deviceOptimization } from '@/utils/deviceOptimization'
 
 const languageStore = useLanguageStore()
-
-// 只在移动设备上显示底部导航
-const shouldShowNavigation = computed(() => {
-  return deviceOptimization.isMobile()
-})
 
 const navigationItems = computed(() => [
   {
