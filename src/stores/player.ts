@@ -47,7 +47,6 @@ export const usePlayerStore = defineStore('player', () => {
   const initAudio = () => {
     if (!audio.value) {
       audio.value = new Audio()
-      audio.value.crossOrigin = 'anonymous'
       audio.value.preload = 'none'
       
       // 设置音频属性以优化播放
@@ -195,27 +194,7 @@ export const usePlayerStore = defineStore('player', () => {
       audio.value!.volume = isDucked.value ? volume.value * 0.3 : volume.value
       audio.value!.muted = isMuted.value
       
-      // 预加载和播放
-      await new Promise<void>((resolve, reject) => {
-        const handleCanPlay = () => {
-          audio.value!.removeEventListener('canplay', handleCanPlay)
-          audio.value!.removeEventListener('error', handleError)
-          resolve()
-        }
-        
-        const handleError = () => {
-          audio.value!.removeEventListener('canplay', handleCanPlay)
-          audio.value!.removeEventListener('error', handleError)
-          reject(new Error('音频加载失败'))
-        }
-        
-        audio.value!.addEventListener('canplay', handleCanPlay)
-        audio.value!.addEventListener('error', handleError)
-        
-        audio.value!.load()
-      })
-      
-      // 播放音频
+      audio.value!.load()
       await audio.value!.play()
       
       console.log(`成功播放电台: ${station.name}`)
@@ -232,7 +211,7 @@ export const usePlayerStore = defineStore('player', () => {
         return await playStation(station, retryCount + 1)
       } else {
         // 达到最大重试次数
-        error.value = ''
+        error.value = '播放失败，请稍后重试'
         isPlaying.value = false
         isLoading.value = false
         throw new Error(error.value)
