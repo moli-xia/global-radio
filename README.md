@@ -2,6 +2,7 @@
 
 这是一个基于 Vue 3 + Vite 的在线电台应用，包含播放、搜索、收藏、历史记录、主题切换与多语言等功能，并支持 PWA 安装。
 
+支持 Docker 一键部署（推荐）与本地开发运行。
 
 ## 功能概览
 
@@ -39,6 +40,18 @@ cd global-radio
 - npm 9+（建议使用 `npm ci`）
 - Docker 20+（仅 Docker 部署需要）
 
+## 本地安装与开发
+
+```bash
+npm ci
+npm run dev -- --host 0.0.0.0 --port 4173
+```
+
+浏览器访问：
+- http://localhost:4173/
+
+局域网访问（同网段设备）：
+- http://<你的电脑IP>:4173/
 ## 构建与预览
 
 ```bash
@@ -48,9 +61,6 @@ npm run preview -- --host 0.0.0.0 --port 4173
 
 浏览器访问：
 - http://localhost:4173/
-- 
-外网访问：
-- http://<你的服务器IP>:4173/
 
 ## 生产部署（静态站点）
 
@@ -95,7 +105,17 @@ sudo systemctl reload nginx
 
 适用场景：不想安装 Node.js，只想用容器快速部署；或者希望用 Nginx 直接提供静态站点服务。
 
-### 方式 A：本地构建镜像并运行
+### 方式 A：Docker Hub 一键部署（推荐）
+
+```bash
+docker pull superneed/global-radio:latest
+docker run -d --name global-radio --restart unless-stopped -p 8080:80 superneed/global-radio:latest
+```
+
+浏览器访问：
+- http://localhost:8080/
+
+### 方式 B：本地构建镜像并运行（可选）
 
 安装 Docker（Linux 示例；也可使用官方文档的安装方式）：
 
@@ -135,14 +155,6 @@ docker run -d --name global-radio --restart unless-stopped -p 8080:80 global-rad
 docker build -t global-radio:latest .
 docker rm -f global-radio || true
 docker run -d --name global-radio --restart unless-stopped -p 8080:80 global-radio:latest
-```
-
-### 方式 B：使用 Docker Hub / GHCR（可选）
-
-如果你把镜像发布到 Docker Hub 或 GitHub Container Registry（GHCR），用户可以直接拉取运行：
-
-```bash
-docker run -d --name global-radio --restart unless-stopped -p 8080:80 <image>:<tag>
 ```
 
 ## 常见问题：无法访问

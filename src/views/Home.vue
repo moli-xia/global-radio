@@ -407,7 +407,6 @@ const loadRandomStations = async () => {
 
 const refreshTopStations = async () => {
   await radioStore.loadTopStations({ force: true })
-  refreshRecommendedFromTop()
 }
 
 // 加载推荐电台
