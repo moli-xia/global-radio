@@ -29,8 +29,8 @@
 ## 获取源码
 
 ```bash
-git clone https://github.com/moli-xia/gloable-radio.git
-cd gloable-radio
+git clone https://github.com/moli-xia/global-radio.git
+cd global-radio
 ```
 
 ## 环境要求
