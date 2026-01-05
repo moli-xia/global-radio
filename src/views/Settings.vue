@@ -153,6 +153,18 @@
             <span class="text-ios-gray dark:text-dark-secondary">{{ t('settings.deviceType') }}</span>
             <span class="text-ios-dark-gray dark:text-dark-text">{{ deviceType }}</span>
           </div>
+
+          <div class="flex justify-between items-center gap-3">
+            <span class="text-ios-gray dark:text-dark-secondary">GitHub</span>
+            <a
+              href="https://github.com/moli-xia/global-radio"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-ios-blue hover:underline truncate"
+            >
+              moli-xia/global-radio
+            </a>
+          </div>
         </div>
       </section>
     </div>
