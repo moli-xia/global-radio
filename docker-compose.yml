@@ -1,0 +1,7 @@
+services:
+  global-radio:
+    image: superneed/global-radio:latest
+    container_name: global-radio
+    restart: unless-stopped
+    ports:
+      - "8080:80"
