@@ -17,9 +17,9 @@
 ### https://aabb.live
 
 ## 应用截图
-![](demo-w.jpg)
-![](demo-b.jpg)
-![](demo-phone.jpg)
+![](demo-w.png)
+![](demo-b.png)
+![](demo-phone.png)
 
 ## 目录结构
 
