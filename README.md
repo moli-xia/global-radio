@@ -26,6 +26,61 @@
 ├── vite.config.ts       # Vite 配置
 └── package.json         # 前端依赖与脚本
 ```
+## Docker 部署
+
+适用场景：不想安装 Node.js，只想用容器快速部署；或者希望用 Nginx 直接提供静态站点服务。
+
+### 方式 A：Docker Hub 一键部署（推荐）
+
+```bash
+docker pull superneed/global-radio:latest
+docker run -d --name global-radio --restart unless-stopped -p 8080:80 superneed/global-radio:latest
+```
+
+浏览器访问：
+- http://localhost:8080/
+
+### 方式 B：本地构建镜像并运行（可选）
+
+安装 Docker（Linux 示例；也可使用官方文档的安装方式）：
+
+```bash
+curl -fsSL https://get.docker.com | sh
+sudo systemctl enable --now docker
+```
+
+构建镜像：
+
+```bash
+docker build -t global-radio:latest .
+```
+
+运行容器（映射到本机 8080 端口）：
+
+```bash
+docker run --rm -p 8080:80 global-radio:latest
+```
+
+浏览器访问：
+- http://localhost:8080/
+
+建议用于生产的运行方式：
+
+1) 直接运行（前置 8080）：
+
+```bash
+docker run -d --name global-radio --restart unless-stopped -p 8080:80 global-radio:latest
+```
+
+2) 需要自定义域名与 HTTPS 时：在宿主机用 Nginx / Caddy 做反向代理到 `127.0.0.1:8080`，容器内只负责静态资源服务。
+
+更新部署（Docker）：
+
+```bash
+docker build -t global-radio:latest .
+docker rm -f global-radio || true
+docker run -d --name global-radio --restart unless-stopped -p 8080:80 global-radio:latest
+```
 
 ## 获取源码
 
@@ -101,62 +156,6 @@ sudo systemctl reload nginx
 - 生产环境建议使用 Nginx 托管 `dist/`，前端不需要长期运行 Vite 服务。
 - 如需临时自测，可用 `npm run preview` 在指定端口提供静态预览。
 - 首页“音乐电台/最新电台”列表有内存缓存（默认 5 分钟），刷新按钮会绕过缓存重新拉取数据。
-
-## Docker 部署
-
-适用场景：不想安装 Node.js，只想用容器快速部署；或者希望用 Nginx 直接提供静态站点服务。
-
-### 方式 A：Docker Hub 一键部署（推荐）
-
-```bash
-docker pull superneed/global-radio:latest
-docker run -d --name global-radio --restart unless-stopped -p 8080:80 superneed/global-radio:latest
-```
-
-浏览器访问：
-- http://localhost:8080/
-
-### 方式 B：本地构建镜像并运行（可选）
-
-安装 Docker（Linux 示例；也可使用官方文档的安装方式）：
-
-```bash
-curl -fsSL https://get.docker.com | sh
-sudo systemctl enable --now docker
-```
-
-构建镜像：
-
-```bash
-docker build -t global-radio:latest .
-```
-
-运行容器（映射到本机 8080 端口）：
-
-```bash
-docker run --rm -p 8080:80 global-radio:latest
-```
-
-浏览器访问：
-- http://localhost:8080/
-
-建议用于生产的运行方式：
-
-1) 直接运行（前置 8080）：
-
-```bash
-docker run -d --name global-radio --restart unless-stopped -p 8080:80 global-radio:latest
-```
-
-2) 需要自定义域名与 HTTPS 时：在宿主机用 Nginx / Caddy 做反向代理到 `127.0.0.1:8080`，容器内只负责静态资源服务。
-
-更新部署（Docker）：
-
-```bash
-docker build -t global-radio:latest .
-docker rm -f global-radio || true
-docker run -d --name global-radio --restart unless-stopped -p 8080:80 global-radio:latest
-```
 
 ## 常见问题：无法访问
 
